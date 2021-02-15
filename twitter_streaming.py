@@ -10,38 +10,36 @@ class CustomListener(StreamListener):
     """ Custom StreamListener for streaming twitter data."""
 
     def __init__(self, fname):
-        safe_fname = format_filename(fname)
-        self.outfile = "stream_%s.jsonl" % safe_fname
+
+        safe_filename = ''.join(convert_valid(one_char) for one_char in fname)
+        self.outfile = "stream_%s.jsonl" % safe_filename
 
     def on_data(self, data):
-        #called when data is coming through. This method simply stores data as it is received in a .jsonl file. Each line in this file will contain a single tweet in json format
-        # return True after data is written, any other errors will be caught and we will write it to our log file, put the application to sleep for 5 seconds and return true to continue execution
         try:
             with open(self.outfile, 'a') as f:
                 f.write(data)
+                #write to .jsonl file, every line = 1 tweet
                 return True
         except BaseException as e:
             sys.stderr.write("Error on_data: {}\n".format(e))
+            #wait 5 seconds, then re-enter normal execution process
             time.sleep(5)
         return True
 
     def on_error(self, status):
-        #this method will deal with explicit errors from twitter. Theres a complete list of error codes and responses on the twitter API
-        #we are specifically looking to stop execution only on error 420 - Rate limit
+        #420 = rate limit error. In this case we definitely want to stop
         if status == 420:
-            sys.stderr.write("Rate limit exceeded\n")
-            return False #stops execution only on fail
+            sys.stderr.write("Rate limit exceeded")
+            return False
         else:
             sys.stderr.write("Error {}\n".format(status))
             return True
 
 
 def format_filename(fname):
-    """ Convert fname into a safe string fo a file name.
-        Return string.
-    """
+    
 
-    return ''.join(convert_valid(one_char) for one_char in fname)
+    return 
 
 def convert_valid(one_char):
 
@@ -55,12 +53,23 @@ def convert_valid(one_char):
     else:
         return '_'
 
-# when we run this script we have to provide arguments in the command line, separated by whitespace.
-#For example in your CLI you can run: python3 twitter_streaming.py \#popularhashtag1 \#popularhashtag2 search_keyword**
-#Stream for about 1 hour and retrieve results in your jsonl file
+
 if __name__ == '__main__':
-    query = sys.argv[1:] # list of CLI argumentsquery_fname
-    query_fname = ' '.join(query) # string
+    #query = sys.argv[1:] # list of CLI argumentsquery_fname
+    #query_fname = ' '.join(query) # string
+    query_fname = 'bostonListener'
     auth = get_twitter_auth()
     twitter_stream = Stream(auth, CustomListener(query_fname))
-    twitter_stream.filter(track=query, is_async=True)
+    #twitter_stream.filter(track=query, is_async=True)
+
+    #ALL US TWEETS
+    #twitter_stream.filter(locations = [32.491230,-117.498920,44.871443,-67.440434], is_async=True)
+
+    #ONLY BOSTON SEARCH PARAMETERS:
+    twitter_stream.filter(locations = [42.187452, -71.321879,42.476259, -70.863781], is_async=True)
+
+    #BOSTON OR COVID:
+    #twitter_stream.filter(track=['covid'],locations = [42.187452, -71.321879,42.476259, -70.863781], is_async=True)
+
+#ex:
+#python3 twitter_streaming.py \#covid has:geo (point_radius:[42.361145 -71.057083  25mi] OR place:"Boston, MA” OR (profile_locality:boston profile_region:Massachusetts ))
